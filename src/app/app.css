@@ -1,0 +1,68 @@
+.app-header {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 26px;
+  min-height: 88px;
+  padding: 15px 24px;
+  border-bottom: 1px solid rgb(255 255 255 / 7%);
+  background: #101214;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: fit-content;
+  color: #f2f3f4;
+  text-decoration: none;
+}
+
+.brand span {
+  color: #747b81;
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+}
+
+.brand strong {
+  font-size: 1.15rem;
+  letter-spacing: -0.025em;
+}
+
+.app-header p {
+  margin: 0;
+  color: #8e959b;
+  font-size: 0.84rem;
+}
+
+.app-header nav {
+  display: flex;
+  gap: 16px;
+}
+
+.app-header nav a {
+  color: #a9afb4;
+  font-size: 0.78rem;
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+.app-header nav a:hover {
+  color: #f2f3f4;
+}
+
+@media (max-width: 700px) {
+  .app-header {
+    grid-template-columns: 1fr auto;
+    min-height: 78px;
+    padding: 12px 15px;
+  }
+
+  .app-header p {
+    display: none;
+  }
+
+  .app-header nav a:first-child {
+    display: none;
+  }
+}

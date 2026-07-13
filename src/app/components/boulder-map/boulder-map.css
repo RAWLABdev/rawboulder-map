@@ -1,0 +1,795 @@
+:host {
+  display: block;
+}
+
+/* ======================================================
+   MAP SHELL
+====================================================== */
+
+.explore-shell {
+  position: relative;
+
+  width: 100%;
+  height: calc(100dvh - 88px);
+  min-height: 580px;
+
+  overflow: hidden;
+  background: #e9ece9;
+}
+
+#map {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+
+  width: 100%;
+  height: 100%;
+}
+
+/* ======================================================
+   SEARCH + FILTERS
+====================================================== */
+
+.map-controls {
+  position: absolute;
+  z-index: 500;
+
+  top: 18px;
+  left: 50%;
+
+  width: min(680px, calc(100% - 32px));
+
+  transform: translateX(-50%);
+  animation: controls-enter 420ms ease-out both;
+}
+
+.search-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  min-height: 52px;
+  padding: 0 16px;
+
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 17px;
+
+  background: rgb(16 18 20 / 91%);
+  color: #f4f5f5;
+
+  box-shadow:
+    0 14px 38px rgb(0 0 0 / 20%),
+    inset 0 1px rgb(255 255 255 / 5%);
+
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.search-control > svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+
+  fill: none;
+  stroke: #a1a6aa;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.search-control input {
+  width: 100%;
+  min-width: 0;
+
+  border: 0;
+  outline: 0;
+
+  background: transparent;
+  color: #f4f5f5;
+
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.search-control input::placeholder {
+  color: #858b90;
+}
+
+.search-control input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.clear-search {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+
+  place-items: center;
+
+  border: 0;
+  border-radius: 50%;
+
+  background: rgb(255 255 255 / 8%);
+  color: #c1c5c8;
+
+  font-size: 1.15rem;
+  line-height: 1;
+
+  cursor: pointer;
+
+  transition:
+    background 150ms ease,
+    transform 150ms ease;
+}
+
+.clear-search:hover {
+  background: rgb(255 255 255 / 14%);
+}
+
+.clear-search:active {
+  transform: scale(0.92);
+}
+
+/* ======================================================
+   FILTER CHIPS
+====================================================== */
+
+.filter-list {
+  display: flex;
+  gap: 8px;
+
+  margin-top: 10px;
+
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+
+  scrollbar-width: none;
+}
+
+.filter-list::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-list button {
+  min-height: 38px;
+  flex: 0 0 auto;
+
+  padding: 0 16px;
+
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
+
+  background: rgb(16 18 20 / 88%);
+  color: #b1b5b8;
+
+  box-shadow: 0 6px 18px rgb(0 0 0 / 12%);
+
+  font: inherit;
+  font-size: 0.82rem;
+
+  cursor: pointer;
+
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+.filter-list button:hover {
+  border-color: rgb(255 255 255 / 28%);
+  color: #fff;
+}
+
+.filter-list button.active {
+  border-color: #f3f4f4;
+  background: #f3f4f4;
+  color: #111315;
+}
+
+.filter-list button:active {
+  transform: scale(0.95);
+}
+
+/* ======================================================
+   NEARBY BUTTON
+====================================================== */
+
+.nearby-button {
+  position: absolute;
+  z-index: 500;
+
+  right: 16px;
+  bottom: 188px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  min-height: 44px;
+  padding: 0 16px;
+
+  border: 1px solid rgb(255 255 255 / 13%);
+  border-radius: 999px;
+
+  background: rgb(16 18 20 / 94%);
+  color: #f4f5f5;
+
+  box-shadow: 0 12px 30px rgb(0 0 0 / 25%);
+
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 500;
+
+  cursor: pointer;
+
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+
+  transition:
+    background 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.nearby-button:hover {
+  background: #1d2022;
+  box-shadow: 0 16px 34px rgb(0 0 0 / 30%);
+  transform: translateY(-2px);
+}
+
+.nearby-button:active {
+  transform: scale(0.96);
+}
+
+.nearby-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.nearby-button svg {
+  width: 18px;
+  height: 18px;
+
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.loading-dot {
+  width: 8px;
+  height: 8px;
+
+  border-radius: 50%;
+  background: currentColor;
+
+  animation: location-pulse 900ms infinite ease-in-out;
+}
+
+/* ======================================================
+   CAROUSEL
+====================================================== */
+
+.spot-carousel {
+  position: absolute;
+  z-index: 500;
+
+  right: 0;
+  bottom: 12px;
+  left: 0;
+
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+
+  padding:
+    0 14px
+    calc(2px + env(safe-area-inset-bottom));
+
+  overflow-x: auto;
+  overflow-y: hidden;
+
+  scroll-behavior: smooth;
+  scroll-padding-inline: 14px;
+  scroll-snap-type: x mandatory;
+
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+
+  animation: carousel-enter 500ms 80ms ease-out both;
+}
+
+.spot-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+/* ======================================================
+   SPOT CARD
+====================================================== */
+
+.spot-card {
+  flex: 0 0 min(320px, calc(100vw - 42px));
+
+  min-height: 0;
+  padding: 16px;
+
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 18px;
+
+  background: rgb(16 18 20 / 95%);
+  color: #f3f4f4;
+
+  box-shadow:
+    0 16px 40px rgb(0 0 0 / 26%),
+    inset 0 1px rgb(255 255 255 / 4%);
+
+  scroll-snap-align: center;
+
+  cursor: pointer;
+
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.spot-card:hover,
+.spot-card:focus-visible {
+  border-color: rgb(255 255 255 / 28%);
+  outline: none;
+
+  box-shadow:
+    0 20px 48px rgb(0 0 0 / 30%),
+    inset 0 1px rgb(255 255 255 / 5%);
+
+  transform: translateY(-3px);
+}
+
+.spot-card.selected {
+  border-color: rgb(70 209 123 / 68%);
+  background: rgb(18 21 22 / 98%);
+
+  box-shadow:
+    0 20px 48px rgb(0 0 0 / 30%),
+    0 0 0 1px rgb(70 209 123 / 13%);
+
+  transform: translateY(-4px);
+}
+
+.spot-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.spot-card-header h2 {
+  margin: 3px 0 0;
+
+  color: #f4f5f5;
+
+  font-size: 1.08rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+}
+
+.spot-type {
+  display: block;
+
+  color: #858c91;
+
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  line-height: 1.2;
+
+  text-transform: uppercase;
+}
+
+.spot-distance {
+  flex: 0 0 auto;
+
+  color: #d2d5d7;
+
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.spot-location {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  margin-top: 7px;
+
+  color: #a4a9ad;
+
+  font-size: 0.84rem;
+}
+
+.spot-location svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.spot-meta {
+  display: flex;
+  align-items: center;
+
+  min-height: 18px;
+  margin-top: 7px;
+
+  color: #83898e;
+
+  font-size: 0.76rem;
+}
+
+.visited {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+
+  color: #72d994;
+}
+
+.visited i {
+  width: 6px;
+  height: 6px;
+
+  border-radius: 50%;
+  background: currentColor;
+
+  box-shadow: 0 0 10px rgb(70 209 123 / 58%);
+}
+
+/* ======================================================
+   CARD ACTIONS
+====================================================== */
+
+.spot-actions {
+  display: flex;
+  gap: 8px;
+
+  margin-top: 12px;
+}
+
+.spot-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+
+  min-height: 40px;
+  padding: 0 13px;
+
+  border: 1px solid #373b3e;
+  border-radius: 10px;
+
+  color: #eceeef;
+
+  font-size: 0.81rem;
+  font-weight: 500;
+
+  text-decoration: none;
+
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+.spot-actions a:hover {
+  border-color: #505458;
+  background: #25282a;
+}
+
+.spot-actions a:active {
+  transform: scale(0.96);
+}
+
+.spot-actions a.primary-action {
+  margin-left: auto;
+
+  border-color: #f2f3f3;
+  background: #f2f3f3;
+  color: #101214;
+}
+
+.spot-actions a.primary-action:hover {
+  border-color: #fff;
+  background: #fff;
+}
+
+.spot-actions svg {
+  width: 15px;
+  height: 15px;
+
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+/* ======================================================
+   EMPTY STATE
+====================================================== */
+
+.empty-state {
+  display: flex;
+  width: min(320px, calc(100vw - 42px));
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 7px;
+
+  padding: 17px;
+
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 18px;
+
+  background: rgb(16 18 20 / 95%);
+  color: #9da2a6;
+
+  box-shadow: 0 16px 40px rgb(0 0 0 / 25%);
+
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.empty-state span {
+  color: #777e83;
+
+  font-size: 0.68rem;
+  letter-spacing: 0.13em;
+
+  text-transform: uppercase;
+}
+
+.empty-state strong {
+  color: #f2f3f3;
+
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.empty-state button {
+  width: fit-content;
+  margin-top: 5px;
+  padding: 0;
+
+  border: 0;
+
+  background: transparent;
+  color: #72d994;
+
+  font: inherit;
+  font-size: 0.82rem;
+
+  cursor: pointer;
+}
+
+/* ======================================================
+   LOCATION MESSAGE
+====================================================== */
+
+.location-message {
+  position: fixed;
+  z-index: 1000;
+
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+
+  width: fit-content;
+  max-width: calc(100% - 32px);
+  margin: 0 auto;
+  padding: 10px 14px;
+
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 12px;
+
+  background: rgb(16 18 20 / 95%);
+  color: #bcc1c4;
+
+  box-shadow: 0 12px 30px rgb(0 0 0 / 24%);
+
+  font-size: 0.78rem;
+  text-align: center;
+
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+
+  animation: message-enter 260ms ease-out both;
+}
+
+/* ======================================================
+   ANIMATIONS
+====================================================== */
+
+@keyframes controls-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes carousel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes message-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes location-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+/* ======================================================
+   TABLET / DESKTOP
+====================================================== */
+
+@media (min-width: 800px) {
+  .spot-carousel {
+    justify-content: flex-start;
+    padding-inline: 24px;
+    scroll-padding-inline: 24px;
+  }
+
+  .nearby-button {
+    right: 24px;
+  }
+}
+
+/* ======================================================
+   MOBILE
+====================================================== */
+
+@media (max-width: 640px) {
+  .explore-shell {
+    height: calc(100dvh - 78px);
+    min-height: 540px;
+  }
+
+  .map-controls {
+    top: 12px;
+    width: calc(100% - 24px);
+  }
+
+  .search-control {
+    min-height: 49px;
+    padding-inline: 14px;
+    border-radius: 15px;
+  }
+
+  .filter-list {
+    gap: 7px;
+    margin-top: 8px;
+  }
+
+  .filter-list button {
+    min-height: 36px;
+    padding-inline: 15px;
+  }
+
+  .nearby-button {
+    right: 12px;
+    bottom: 180px;
+
+    min-height: 42px;
+    padding-inline: 14px;
+
+    font-size: 0.81rem;
+  }
+
+  .spot-carousel {
+    bottom: 10px;
+    gap: 10px;
+
+    padding:
+      0 12px
+      calc(2px + env(safe-area-inset-bottom));
+
+    scroll-padding-inline: 12px;
+  }
+
+  .spot-card {
+    flex-basis: calc(100vw - 36px);
+
+    padding: 15px;
+    border-radius: 17px;
+  }
+
+  .spot-card-header h2 {
+    font-size: 1.05rem;
+  }
+
+  .spot-actions a {
+    min-height: 39px;
+  }
+}
+
+/* ======================================================
+   SMALL MOBILE
+====================================================== */
+
+@media (max-width: 380px) {
+  .spot-card {
+    flex-basis: calc(100vw - 28px);
+  }
+
+  .spot-actions a {
+    padding-inline: 11px;
+    font-size: 0.76rem;
+  }
+
+  .nearby-button {
+    bottom: 178px;
+  }
+}
+
+/* ======================================================
+   REDUCED MOTION
+====================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

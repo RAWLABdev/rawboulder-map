@@ -1,0 +1,213 @@
+<main class="explore-shell">
+  <section
+    class="map-controls"
+    aria-label="Buscar y filtrar lugares"
+  >
+    <div class="search-control">
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+      >
+        <path
+          d="m21 21-4.35-4.35m2.35-5.65a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z"
+        />
+      </svg>
+
+      <input
+        type="search"
+        aria-label="Buscar muro, comuna o gimnasio"
+        placeholder="Buscar muro o comuna"
+        [value]="query()"
+        (input)="onSearch($event)"
+      />
+
+      @if (query()) {
+        <button
+          class="clear-search"
+          type="button"
+          aria-label="Limpiar búsqueda"
+          (click)="clearSearch()"
+        >
+          ×
+        </button>
+      }
+    </div>
+
+    <div
+      class="filter-list"
+      aria-label="Tipos de lugares"
+    >
+      <button
+        type="button"
+        [class.active]="activeFilter() === 'all'"
+        (click)="setFilter('all')"
+      >
+        Todos
+      </button>
+
+      <button
+        type="button"
+        [class.active]="activeFilter() === 'boulder'"
+        (click)="setFilter('boulder')"
+      >
+        Boulder
+      </button>
+
+      <button
+        type="button"
+        [class.active]="activeFilter() === 'muro'"
+        (click)="setFilter('muro')"
+      >
+        Muro
+      </button>
+
+      <button
+        type="button"
+        [class.active]="activeFilter() === 'mixto'"
+        (click)="setFilter('mixto')"
+      >
+        Mixto
+      </button>
+    </div>
+  </section>
+
+  <div
+    id="map"
+    aria-label="Mapa de muros y boulders"
+  ></div>
+
+  <button
+    class="nearby-button"
+    type="button"
+    [disabled]="locating()"
+    (click)="findNearestSpot()"
+  >
+    @if (locating()) {
+      <span class="loading-dot"></span>
+      Buscando
+    } @else {
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+      >
+        <circle cx="12" cy="12" r="3" />
+        <circle cx="12" cy="12" r="8" />
+        <path d="M12 2v2M12 20v2M2 12h2M20 12h2" />
+      </svg>
+
+      Cerca de mí
+    }
+  </button>
+
+  <section
+  class="spot-carousel"
+  aria-label="Lugares encontrados"
+>
+  @for (spot of filteredSpots(); track spot.id) {
+    <article
+      class="spot-card"
+      [class.selected]="selectedSpot()?.id === spot.id"
+      tabindex="0"
+      (click)="focusSpot(spot)"
+      (keydown.enter)="focusSpot(spot)"
+    >
+      <header class="spot-card-header">
+        <div>
+          <span class="spot-type">
+            {{ spot.type }}
+          </span>
+
+          <h2>{{ spot.name }}</h2>
+        </div>
+
+        @if (spot.distanceKm !== undefined) {
+          <span class="spot-distance">
+            {{ spot.distanceKm.toFixed(1) }} km
+          </span>
+        }
+      </header>
+
+      <div class="spot-location">
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+        >
+          <path
+            d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"
+          />
+
+          <circle
+            cx="12"
+            cy="10"
+            r="2.5"
+          />
+        </svg>
+
+        <span>{{ spot.commune }}</span>
+      </div>
+
+      <div class="spot-meta">
+        @if (spot.visited) {
+          <span class="visited">
+            <i></i>
+            Visitado por RAW
+          </span>
+        } @else {
+          <span>Por conocer</span>
+        }
+      </div>
+
+      <footer class="spot-actions">
+        @if (spot.instagram) {
+          <a
+            [href]="spot.instagram"
+            target="_blank"
+            rel="noopener noreferrer"
+            (click)="$event.stopPropagation()"
+          >
+            Instagram
+          </a>
+        }
+
+        <a
+          class="primary-action"
+          [href]="spot.googleMaps"
+          target="_blank"
+          rel="noopener noreferrer"
+          (click)="$event.stopPropagation()"
+        >
+          Cómo llegar
+
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+          >
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </a>
+      </footer>
+    </article>
+  } @empty {
+    <article class="empty-state">
+      <span>Sin resultados</span>
+
+      <strong>
+        No encontramos lugares con esa búsqueda.
+      </strong>
+
+      <button
+        type="button"
+        (click)="clearSearch(); setFilter('all')"
+      >
+        Ver todos
+      </button>
+    </article>
+  }
+</section>
+</main>
+
+@if (locationStatus()) {
+  <aside class="location-message">
+    {{ locationStatus() }}
+  </aside>
+}

@@ -1,12 +1,22 @@
-import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component } from '@angular/core';
+
+import { BoulderMapComponent } from './components/boulder-map/boulder-map';
+
+import { BOULDER_SPOTS } from './data/boulder-spots';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+
+  imports: [
+    BoulderMapComponent
+  ],
+
   templateUrl: './app.html',
+
   styleUrl: './app.css'
 })
 export class App {
-  protected readonly title = signal('rawboulder-map');
+
+  spots = BOULDER_SPOTS;
+
 }
