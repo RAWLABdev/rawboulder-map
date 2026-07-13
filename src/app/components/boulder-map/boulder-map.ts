@@ -20,6 +20,11 @@ import {
 type SpotFilter = 'all' | BoulderSpotType;
 type SheetState = 'closed' | 'peek' | 'expanded';
 
+type UserLocation = {
+  latitude: number;
+  longitude: number;
+};
+
 @Component({
   selector: 'app-boulder-map',
   standalone: true,
@@ -82,7 +87,9 @@ export class BoulderMapComponent
 
   private map?: Leaflet.Map;
   private leaflet?: typeof Leaflet;
+
   private userMarker?: Leaflet.Marker;
+  private userLocation?: UserLocation;
 
   private readonly markers = new Map<
     string,
@@ -377,15 +384,41 @@ export class BoulderMapComponent
     }
   }
 
+  /**
+   * Genera una ruta hacia el lugar.
+   *
+   * Si el usuario ya permitió su ubicación:
+   * origen = ubicación actual
+   * destino = boulder seleccionado
+   *
+   * Si aún no dio permiso, Google Maps intentará
+   * usar automáticamente su ubicación actual.
+   */
   getDirectionsUrl(spot: BoulderSpot): string {
-    const destination = encodeURIComponent(
+    const url = new URL(
+      'https://www.google.com/maps/dir/'
+    );
+
+    url.searchParams.set('api', '1');
+
+    url.searchParams.set(
+      'destination',
       `${spot.lat},${spot.lng}`
     );
 
-    return (
-      'https://www.google.com/maps/dir/' +
-      `?api=1&destination=${destination}`
+    url.searchParams.set(
+      'travelmode',
+      'walking'
     );
+
+    if (this.userLocation) {
+      url.searchParams.set(
+        'origin',
+        `${this.userLocation.latitude},${this.userLocation.longitude}`
+      );
+    }
+
+    return url.toString();
   }
 
   findNearestSpot(): void {
@@ -443,11 +476,13 @@ export class BoulderMapComponent
 
         this.locating.set(false);
       },
-      () => {
-        this.locationStatus.set(
-          'No pudimos acceder a tu ubicación.'
-        );
+      (error) => {
+        const message =
+          error.code === error.PERMISSION_DENIED
+            ? 'Debes permitir el acceso a tu ubicación.'
+            : 'No pudimos obtener tu ubicación.';
 
+        this.locationStatus.set(message);
         this.locating.set(false);
       },
       {
@@ -700,6 +735,11 @@ export class BoulderMapComponent
     if (!this.map || !this.leaflet) {
       return;
     }
+
+    this.userLocation = {
+      latitude,
+      longitude,
+    };
 
     this.userMarker?.remove();
 
