@@ -79,14 +79,24 @@ export class BoulderMapComponent implements AfterViewInit {
       return;
     }
 
-    this.leaflet = await import('leaflet');
+    const leafletModule = await import('leaflet');
+
+    const leaflet =
+      (
+        leafletModule as typeof leafletModule & {
+          default?: typeof Leaflet;
+        }
+      ).default ?? leafletModule;
+
+    this.leaflet = leaflet as typeof Leaflet;
 
     this.initializeMap();
     this.createMarkers();
+    this.updateMarkerStyles();
 
     window.setTimeout(() => {
       this.map?.invalidateSize();
-    });
+    }, 0);
   }
 
   onSearch(event: Event): void {
@@ -99,6 +109,7 @@ export class BoulderMapComponent implements AfterViewInit {
   clearSearch(): void {
     this.query.set('');
     this.syncMarkers();
+    this.fitVisibleMarkers();
   }
 
   setFilter(filter: SpotFilter): void {
@@ -106,6 +117,7 @@ export class BoulderMapComponent implements AfterViewInit {
     this.selectedSpot.set(null);
 
     this.syncMarkers();
+    this.updateMarkerStyles();
     this.fitVisibleMarkers();
   }
 
@@ -134,14 +146,19 @@ export class BoulderMapComponent implements AfterViewInit {
     }
 
     this.locating.set(true);
-    this.locationStatus.set('Buscando tu ubicación…');
+    this.locationStatus.set(
+      'Buscando tu ubicación…'
+    );
 
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         const latitude = coords.latitude;
         const longitude = coords.longitude;
 
-        this.showUserLocation(latitude, longitude);
+        this.showUserLocation(
+          latitude,
+          longitude
+        );
 
         const orderedSpots = this.spots()
           .map((spot) => ({
@@ -189,35 +206,35 @@ export class BoulderMapComponent implements AfterViewInit {
   }
 
   private initializeMap(): void {
-  if (!this.leaflet) {
-    return;
+    if (!this.leaflet) {
+      return;
+    }
+
+    this.map = this.leaflet
+      .map('map', {
+        zoomControl: false,
+        attributionControl: true,
+      })
+      .setView([-33.45, -70.64], 11);
+
+    this.leaflet
+      .tileLayer(
+        'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        {
+          attribution:
+            '&copy; OpenStreetMap contributors &copy; CARTO',
+          subdomains: 'abcd',
+          maxZoom: 20,
+        }
+      )
+      .addTo(this.map);
+
+    this.leaflet.control
+      .zoom({
+        position: 'bottomright',
+      })
+      .addTo(this.map);
   }
-
-  this.map = this.leaflet
-    .map('map', {
-      zoomControl: false,
-      attributionControl: true,
-    })
-    .setView([-33.45, -70.64], 11);
-
-  this.leaflet
-    .tileLayer(
-      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-      {
-        attribution:
-          '&copy; OpenStreetMap contributors &copy; CARTO',
-        subdomains: 'abcd',
-        maxZoom: 20,
-      }
-    )
-    .addTo(this.map);
-
-  this.leaflet.control
-    .zoom({
-      position: 'bottomright',
-    })
-    .addTo(this.map);
-}
 
   private createMarkers(): void {
     if (!this.map || !this.leaflet) {
@@ -243,8 +260,7 @@ export class BoulderMapComponent implements AfterViewInit {
       `);
 
       marker.on('click', () => {
-        this.selectedSpot.set(spot);
-        this.updateMarkerStyles();
+        this.focusSpot(spot);
       });
 
       marker.addTo(this.map!);
@@ -256,37 +272,52 @@ export class BoulderMapComponent implements AfterViewInit {
     selected: boolean
   ): Leaflet.DivIcon {
     if (!this.leaflet) {
-      throw new Error('Leaflet no está disponible.');
+      throw new Error(
+        'Leaflet no está disponible.'
+      );
     }
 
     return this.leaflet.divIcon({
       className: 'raw-marker-wrapper',
       html: `
         <span
-          class="raw-marker ${selected ? 'is-selected' : ''}"
+          class="raw-marker ${
+            selected ? 'is-selected' : ''
+          }"
           aria-hidden="true"
         >
           <span class="raw-marker-core"></span>
         </span>
       `,
-      iconSize: selected ? [46, 46] : [38, 38],
-      iconAnchor: selected ? [23, 23] : [19, 19],
+      iconSize: selected
+        ? [46, 46]
+        : [38, 38],
+      iconAnchor: selected
+        ? [23, 23]
+        : [19, 19],
       popupAnchor: [0, -22],
     });
   }
 
   private updateMarkerStyles(): void {
-    const selectedId = this.selectedSpot()?.id;
+    const selectedId =
+      this.selectedSpot()?.id;
 
-    this.markers.forEach((marker, id) => {
-      marker.setIcon(
-        this.createSpotIcon(id === selectedId)
-      );
+    this.markers.forEach(
+      (marker, id) => {
+        marker.setIcon(
+          this.createSpotIcon(
+            id === selectedId
+          )
+        );
 
-      marker.setZIndexOffset(
-        id === selectedId ? 1000 : 0
-      );
-    });
+        marker.setZIndexOffset(
+          id === selectedId
+            ? 1000
+            : 0
+        );
+      }
+    );
   }
 
   private syncMarkers(): void {
@@ -295,16 +326,20 @@ export class BoulderMapComponent implements AfterViewInit {
     }
 
     const visibleIds = new Set(
-      this.filteredSpots().map((spot) => spot.id)
+      this.filteredSpots().map(
+        (spot) => spot.id
+      )
     );
 
-    this.markers.forEach((marker, id) => {
-      if (visibleIds.has(id)) {
-        marker.addTo(this.map!);
-      } else {
-        marker.removeFrom(this.map!);
+    this.markers.forEach(
+      (marker, id) => {
+        if (visibleIds.has(id)) {
+          marker.addTo(this.map!);
+        } else {
+          marker.removeFrom(this.map!);
+        }
       }
-    });
+    );
   }
 
   private fitVisibleMarkers(): void {
@@ -312,23 +347,28 @@ export class BoulderMapComponent implements AfterViewInit {
       return;
     }
 
-    const visibleSpots = this.filteredSpots();
+    const visibleSpots =
+      this.filteredSpots();
 
     if (visibleSpots.length === 0) {
       return;
     }
 
     if (visibleSpots.length === 1) {
-      this.focusSpot(visibleSpots[0]);
+      this.focusSpot(
+        visibleSpots[0]
+      );
+
       return;
     }
 
-    const bounds = this.leaflet.latLngBounds(
-      visibleSpots.map((spot) => [
-        spot.lat,
-        spot.lng,
-      ])
-    );
+    const bounds =
+      this.leaflet.latLngBounds(
+        visibleSpots.map((spot) => [
+          spot.lat,
+          spot.lng,
+        ])
+      );
 
     this.map.fitBounds(bounds, {
       padding: [70, 70],
@@ -347,29 +387,41 @@ export class BoulderMapComponent implements AfterViewInit {
 
     this.userMarker?.remove();
 
-    const userIcon = this.leaflet.divIcon({
-      className: 'raw-user-marker-wrapper',
-      html: `
-        <span class="raw-user-marker">
-          <span></span>
-        </span>
-      `,
-      iconSize: [34, 34],
-      iconAnchor: [17, 17],
-    });
+    const userIcon =
+      this.leaflet.divIcon({
+        className:
+          'raw-user-marker-wrapper',
 
-    this.userMarker = this.leaflet
-      .marker([latitude, longitude], {
-        icon: userIcon,
-        title: 'Tu ubicación',
-      })
-      .addTo(this.map)
-      .bindPopup('Estás aquí');
+        html: `
+          <span class="raw-user-marker">
+            <span></span>
+          </span>
+        `,
 
-    this.map.flyTo([latitude, longitude], 13, {
-      animate: true,
-      duration: 0.7,
-    });
+        iconSize: [34, 34],
+        iconAnchor: [17, 17],
+      });
+
+    this.userMarker =
+      this.leaflet
+        .marker(
+          [latitude, longitude],
+          {
+            icon: userIcon,
+            title: 'Tu ubicación',
+          }
+        )
+        .addTo(this.map)
+        .bindPopup('Estás aquí');
+
+    this.map.flyTo(
+      [latitude, longitude],
+      13,
+      {
+        animate: true,
+        duration: 0.7,
+      }
+    );
   }
 
   private calculateDistance(
@@ -380,19 +432,31 @@ export class BoulderMapComponent implements AfterViewInit {
   ): number {
     const earthRadiusKm = 6371;
 
-    const latitudeDifference = this.toRadians(
-      destinationLat - originLat
-    );
+    const latitudeDifference =
+      this.toRadians(
+        destinationLat - originLat
+      );
 
-    const longitudeDifference = this.toRadians(
-      destinationLng - originLng
-    );
+    const longitudeDifference =
+      this.toRadians(
+        destinationLng - originLng
+      );
 
     const calculation =
-      Math.sin(latitudeDifference / 2) ** 2 +
-      Math.cos(this.toRadians(originLat)) *
-        Math.cos(this.toRadians(destinationLat)) *
-        Math.sin(longitudeDifference / 2) ** 2;
+      Math.sin(
+        latitudeDifference / 2
+      ) ** 2 +
+      Math.cos(
+        this.toRadians(originLat)
+      ) *
+        Math.cos(
+          this.toRadians(
+            destinationLat
+          )
+        ) *
+        Math.sin(
+          longitudeDifference / 2
+        ) ** 2;
 
     return (
       earthRadiusKm *
@@ -404,14 +468,19 @@ export class BoulderMapComponent implements AfterViewInit {
     );
   }
 
-  private toRadians(value: number): number {
+  private toRadians(
+    value: number
+  ): number {
     return value * (Math.PI / 180);
   }
 
   private formatType(
     type: BoulderSpotType
   ): string {
-    const labels: Record<BoulderSpotType, string> = {
+    const labels: Record<
+      BoulderSpotType,
+      string
+    > = {
       boulder: 'Boulder',
       muro: 'Muro',
       mixto: 'Mixto',
