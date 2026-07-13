@@ -4,6 +4,7 @@ import {
   Component,
   computed,
   Inject,
+  OnDestroy,
   PLATFORM_ID,
   signal,
 } from '@angular/core';
@@ -25,19 +26,17 @@ type SheetState = 'closed' | 'peek' | 'expanded';
   templateUrl: './boulder-map.html',
   styleUrl: './boulder-map.css',
 })
-export class BoulderMapComponent implements AfterViewInit {
+export class BoulderMapComponent
+  implements AfterViewInit, OnDestroy
+{
   readonly spots = signal<BoulderSpot[]>(BOULDER_SPOTS);
 
   readonly query = signal('');
   readonly activeFilter = signal<SpotFilter>('all');
 
-  readonly selectedSpot = signal<BoulderSpot | null>(
-    BOULDER_SPOTS.find((spot) => spot.featured) ??
-      BOULDER_SPOTS[0] ??
-      null
-  );
+  readonly selectedSpot = signal<BoulderSpot | null>(null);
+  readonly sheetState = signal<SheetState>('closed');
 
-  readonly sheetState = signal<SheetState>('peek');
   readonly sheetDragOffset = signal(0);
   readonly isDraggingSheet = signal(false);
 
@@ -94,6 +93,10 @@ export class BoulderMapComponent implements AfterViewInit {
   private dragLastY = 0;
   private dragPointerId?: number;
 
+  private readonly handlePopState = (): void => {
+    this.restoreSpotFromUrl(false);
+  };
+
   constructor(
     @Inject(PLATFORM_ID)
     private readonly platformId: object
@@ -119,12 +122,37 @@ export class BoulderMapComponent implements AfterViewInit {
 
     this.initializeMap();
     this.createMarkers();
-    this.updateMarkerStyles();
+
+    window.addEventListener(
+      'popstate',
+      this.handlePopState
+    );
+
+    this.restoreSpotFromUrl(false);
 
     window.setTimeout(() => {
       this.map?.invalidateSize();
-      this.updateMapPadding();
+
+      if (!this.selectedSpot()) {
+        this.fitVisibleMarkers();
+      }
     }, 0);
+  }
+
+  ngOnDestroy(): void {
+    if (!isPlatformBrowser(this.platformId)) {
+      return;
+    }
+
+    window.removeEventListener(
+      'popstate',
+      this.handlePopState
+    );
+
+    this.map?.remove();
+    this.map = undefined;
+
+    this.markers.clear();
   }
 
   onSearch(event: Event): void {
@@ -144,13 +172,20 @@ export class BoulderMapComponent implements AfterViewInit {
     this.applyResults();
   }
 
-  selectSpot(spot: BoulderSpot): void {
+  selectSpot(
+    spot: BoulderSpot,
+    updateUrl = true
+  ): void {
     this.selectedSpot.set(spot);
     this.sheetState.set('peek');
     this.sheetDragOffset.set(0);
 
     this.updateMarkerStyles();
     this.focusMapOnSpot(spot);
+
+    if (updateUrl) {
+      this.updateSpotUrl(spot);
+    }
 
     window.setTimeout(() => {
       this.markers.get(spot.id)?.openPopup();
@@ -171,16 +206,25 @@ export class BoulderMapComponent implements AfterViewInit {
     }, 320);
   }
 
-  closeSheet(event?: Event): void {
+  closeSheet(
+    event?: Event,
+    updateUrl = true
+  ): void {
     event?.stopPropagation();
 
     this.sheetState.set('closed');
     this.sheetDragOffset.set(0);
     this.selectedSpot.set(null);
+
+    this.map?.closePopup();
     this.updateMarkerStyles();
 
+    if (updateUrl) {
+      this.clearSpotUrl(true);
+    }
+
     window.setTimeout(() => {
-      this.updateMapPadding();
+      this.map?.invalidateSize();
     }, 320);
   }
 
@@ -205,6 +249,7 @@ export class BoulderMapComponent implements AfterViewInit {
     this.sheetDragOffset.set(0);
 
     const target = event.currentTarget as HTMLElement;
+
     target.setPointerCapture(event.pointerId);
   }
 
@@ -218,7 +263,8 @@ export class BoulderMapComponent implements AfterViewInit {
 
     this.dragLastY = event.clientY;
 
-    const offset = event.clientY - this.dragStartY;
+    const offset =
+      event.clientY - this.dragStartY;
 
     this.sheetDragOffset.set(offset);
   }
@@ -231,10 +277,18 @@ export class BoulderMapComponent implements AfterViewInit {
       return;
     }
 
-    const offset = this.dragLastY - this.dragStartY;
+    const offset =
+      this.dragLastY - this.dragStartY;
 
     this.isDraggingSheet.set(false);
     this.sheetDragOffset.set(0);
+
+    const target = event.currentTarget as HTMLElement;
+
+    if (target.hasPointerCapture(event.pointerId)) {
+      target.releasePointerCapture(event.pointerId);
+    }
+
     this.dragPointerId = undefined;
 
     if (offset < -70) {
@@ -244,6 +298,7 @@ export class BoulderMapComponent implements AfterViewInit {
         this.sheetState.set('peek');
       } else {
         this.closeSheet();
+        return;
       }
     }
 
@@ -262,7 +317,9 @@ export class BoulderMapComponent implements AfterViewInit {
   ): void {
     event.stopPropagation();
 
-    const nextFavorites = new Set(this.favoriteIds());
+    const nextFavorites = new Set(
+      this.favoriteIds()
+    );
 
     if (nextFavorites.has(spot.id)) {
       nextFavorites.delete(spot.id);
@@ -281,7 +338,8 @@ export class BoulderMapComponent implements AfterViewInit {
     event.stopPropagation();
 
     const url = this.getShareUrl(spot);
-    const title = `${spot.name} · RAWBOULDER MAP`;
+    const title =
+      `${spot.name} · RAWBOULDER MAP`;
     const text =
       `Mira ${spot.name} en RAWBOULDER MAP.`;
 
@@ -293,12 +351,18 @@ export class BoulderMapComponent implements AfterViewInit {
           url,
         });
 
-        this.showShareStatus('Lugar compartido.');
+        this.showShareStatus(
+          'Lugar compartido.'
+        );
+
         return;
       }
 
       await navigator.clipboard.writeText(url);
-      this.showShareStatus('Enlace copiado.');
+
+      this.showShareStatus(
+        'Enlace copiado.'
+      );
     } catch (error) {
       if (
         error instanceof DOMException &&
@@ -370,7 +434,8 @@ export class BoulderMapComponent implements AfterViewInit {
 
         if (nearestSpot) {
           this.locationStatus.set(
-            `${nearestSpot.name} está a unos ${nearestSpot.distanceKm?.toFixed(1)} km.`
+            `${nearestSpot.name} está a unos ` +
+              `${nearestSpot.distanceKm?.toFixed(1)} km.`
           );
 
           this.selectSpot(nearestSpot);
@@ -396,10 +461,12 @@ export class BoulderMapComponent implements AfterViewInit {
   private applyResults(): void {
     this.syncMarkers();
 
-    const visibleSpots = this.filteredSpots();
+    const visibleSpots =
+      this.filteredSpots();
 
     if (visibleSpots.length === 0) {
-      this.closeSheet();
+      this.closeSheet(undefined, false);
+      this.clearSpotUrl(false);
       return;
     }
 
@@ -410,6 +477,11 @@ export class BoulderMapComponent implements AfterViewInit {
 
     this.selectedSpot.set(null);
     this.sheetState.set('closed');
+    this.sheetDragOffset.set(0);
+
+    this.map?.closePopup();
+
+    this.clearSpotUrl(false);
     this.updateMarkerStyles();
     this.fitVisibleMarkers();
   }
@@ -428,10 +500,12 @@ export class BoulderMapComponent implements AfterViewInit {
 
     this.leaflet
       .tileLayer(
-        'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        'https://{s}.basemaps.cartocdn.com/' +
+          'light_all/{z}/{x}/{y}{r}.png',
         {
           attribution:
-            '&copy; OpenStreetMap contributors &copy; CARTO',
+            '&copy; OpenStreetMap contributors ' +
+            '&copy; CARTO',
           subdomains: 'abcd',
           maxZoom: 20,
         }
@@ -498,24 +572,35 @@ export class BoulderMapComponent implements AfterViewInit {
           <span class="raw-marker-core"></span>
         </span>
       `,
-      iconSize: selected ? [46, 46] : [38, 38],
-      iconAnchor: selected ? [23, 23] : [19, 19],
+      iconSize: selected
+        ? [46, 46]
+        : [38, 38],
+      iconAnchor: selected
+        ? [23, 23]
+        : [19, 19],
       popupAnchor: [0, -22],
     });
   }
 
   private updateMarkerStyles(): void {
-    const selectedId = this.selectedSpot()?.id;
+    const selectedId =
+      this.selectedSpot()?.id;
 
-    this.markers.forEach((marker, id) => {
-      marker.setIcon(
-        this.createSpotIcon(id === selectedId)
-      );
+    this.markers.forEach(
+      (marker, id) => {
+        marker.setIcon(
+          this.createSpotIcon(
+            id === selectedId
+          )
+        );
 
-      marker.setZIndexOffset(
-        id === selectedId ? 1000 : 0
-      );
-    });
+        marker.setZIndexOffset(
+          id === selectedId
+            ? 1000
+            : 0
+        );
+      }
+    );
   }
 
   private syncMarkers(): void {
@@ -524,16 +609,20 @@ export class BoulderMapComponent implements AfterViewInit {
     }
 
     const visibleIds = new Set(
-      this.filteredSpots().map((spot) => spot.id)
+      this.filteredSpots().map(
+        (spot) => spot.id
+      )
     );
 
-    this.markers.forEach((marker, id) => {
-      if (visibleIds.has(id)) {
-        marker.addTo(this.map!);
-      } else {
-        marker.removeFrom(this.map!);
+    this.markers.forEach(
+      (marker, id) => {
+        if (visibleIds.has(id)) {
+          marker.addTo(this.map!);
+        } else {
+          marker.removeFrom(this.map!);
+        }
       }
-    });
+    );
   }
 
   private fitVisibleMarkers(): void {
@@ -541,18 +630,25 @@ export class BoulderMapComponent implements AfterViewInit {
       return;
     }
 
-    const visibleSpots = this.filteredSpots();
+    const visibleSpots =
+      this.filteredSpots();
 
     if (visibleSpots.length === 0) {
       return;
     }
 
-    const bounds = this.leaflet.latLngBounds(
-      visibleSpots.map((spot) => [
-        spot.lat,
-        spot.lng,
-      ])
-    );
+    if (visibleSpots.length === 1) {
+      this.focusMapOnSpot(visibleSpots[0]);
+      return;
+    }
+
+    const bounds =
+      this.leaflet.latLngBounds(
+        visibleSpots.map((spot) => [
+          spot.lat,
+          spot.lng,
+        ])
+      );
 
     this.map.fitBounds(bounds, {
       paddingTopLeft: [40, 150],
@@ -562,7 +658,9 @@ export class BoulderMapComponent implements AfterViewInit {
     });
   }
 
-  private focusMapOnSpot(spot: BoulderSpot): void {
+  private focusMapOnSpot(
+    spot: BoulderSpot
+  ): void {
     if (!this.map) {
       return;
     }
@@ -573,7 +671,10 @@ export class BoulderMapComponent implements AfterViewInit {
         : 0.004;
 
     this.map.flyTo(
-      [spot.lat - latitudeOffset, spot.lng],
+      [
+        spot.lat - latitudeOffset,
+        spot.lng,
+      ],
       15,
       {
         animate: true,
@@ -602,22 +703,27 @@ export class BoulderMapComponent implements AfterViewInit {
 
     this.userMarker?.remove();
 
-    const userIcon = this.leaflet.divIcon({
-      className: 'raw-user-marker-wrapper',
-      html: `
-        <span class="raw-user-marker">
-          <span></span>
-        </span>
-      `,
-      iconSize: [34, 34],
-      iconAnchor: [17, 17],
-    });
+    const userIcon =
+      this.leaflet.divIcon({
+        className:
+          'raw-user-marker-wrapper',
+        html: `
+          <span class="raw-user-marker">
+            <span></span>
+          </span>
+        `,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17],
+      });
 
     this.userMarker = this.leaflet
-      .marker([latitude, longitude], {
-        icon: userIcon,
-        title: 'Tu ubicación',
-      })
+      .marker(
+        [latitude, longitude],
+        {
+          icon: userIcon,
+          title: 'Tu ubicación',
+        }
+      )
       .addTo(this.map)
       .bindPopup('Estás aquí');
 
@@ -629,6 +735,123 @@ export class BoulderMapComponent implements AfterViewInit {
         duration: 0.65,
       }
     );
+  }
+
+  private restoreSpotFromUrl(
+    animate = true
+  ): void {
+    const params = new URLSearchParams(
+      window.location.search
+    );
+
+    const spotSlug = params.get('spot');
+
+    if (!spotSlug) {
+      this.sheetState.set('closed');
+      this.sheetDragOffset.set(0);
+      this.selectedSpot.set(null);
+
+      this.map?.closePopup();
+      this.updateMarkerStyles();
+      this.fitVisibleMarkers();
+
+      return;
+    }
+
+    const spot = this.spots().find(
+      (item) => item.slug === spotSlug
+    );
+
+    if (!spot) {
+      this.sheetState.set('closed');
+      this.selectedSpot.set(null);
+
+      this.clearSpotUrl(false);
+      this.updateMarkerStyles();
+      this.fitVisibleMarkers();
+
+      return;
+    }
+
+    this.selectedSpot.set(spot);
+    this.sheetState.set('peek');
+    this.sheetDragOffset.set(0);
+
+    this.updateMarkerStyles();
+
+    if (animate) {
+      this.focusMapOnSpot(spot);
+    } else {
+      this.map?.setView(
+        [
+          spot.lat - 0.004,
+          spot.lng,
+        ],
+        15
+      );
+    }
+
+    window.setTimeout(() => {
+      this.markers
+        .get(spot.id)
+        ?.openPopup();
+    }, animate ? 420 : 50);
+  }
+
+  private updateSpotUrl(
+    spot: BoulderSpot
+  ): void {
+    const url = new URL(
+      window.location.href
+    );
+
+    if (
+      url.searchParams.get('spot') ===
+      spot.slug
+    ) {
+      return;
+    }
+
+    url.searchParams.set(
+      'spot',
+      spot.slug
+    );
+
+    window.history.pushState(
+      {
+        spot: spot.slug,
+      },
+      '',
+      url
+    );
+  }
+
+  private clearSpotUrl(
+    pushHistory = true
+  ): void {
+    const url = new URL(
+      window.location.href
+    );
+
+    if (!url.searchParams.has('spot')) {
+      return;
+    }
+
+    url.searchParams.delete('spot');
+
+    if (pushHistory) {
+      window.history.pushState(
+        {},
+        '',
+        url
+      );
+    } else {
+      window.history.replaceState(
+        {},
+        '',
+        url
+      );
+    }
   }
 
   private loadFavorites(): void {
@@ -649,7 +872,9 @@ export class BoulderMapComponent implements AfterViewInit {
         this.favoriteIds.set(
           new Set(
             parsedFavorites.filter(
-              (value): value is string =>
+              (
+                value
+              ): value is string =>
                 typeof value === 'string'
             )
           )
@@ -663,21 +888,37 @@ export class BoulderMapComponent implements AfterViewInit {
   private persistFavorites(
     favorites: Set<string>
   ): void {
-    localStorage.setItem(
-      'rawboulder-favorites',
-      JSON.stringify([...favorites])
-    );
+    try {
+      localStorage.setItem(
+        'rawboulder-favorites',
+        JSON.stringify([...favorites])
+      );
+    } catch {
+      this.showShareStatus(
+        'No pudimos guardar el favorito.'
+      );
+    }
   }
 
-  private getShareUrl(spot: BoulderSpot): string {
-    const url = new URL(window.location.href);
+  private getShareUrl(
+    spot: BoulderSpot
+  ): string {
+    const url = new URL(
+      window.location.origin +
+        window.location.pathname
+    );
 
-    url.searchParams.set('spot', spot.slug);
+    url.searchParams.set(
+      'spot',
+      spot.slug
+    );
 
     return url.toString();
   }
 
-  private showShareStatus(message: string): void {
+  private showShareStatus(
+    message: string
+  ): void {
     this.shareStatus.set(message);
 
     window.setTimeout(() => {
@@ -704,10 +945,16 @@ export class BoulderMapComponent implements AfterViewInit {
       );
 
     const calculation =
-      Math.sin(latitudeDifference / 2) ** 2 +
-      Math.cos(this.toRadians(originLat)) *
+      Math.sin(
+        latitudeDifference / 2
+      ) ** 2 +
+      Math.cos(
+        this.toRadians(originLat)
+      ) *
         Math.cos(
-          this.toRadians(destinationLat)
+          this.toRadians(
+            destinationLat
+          )
         ) *
         Math.sin(
           longitudeDifference / 2
@@ -723,7 +970,9 @@ export class BoulderMapComponent implements AfterViewInit {
     );
   }
 
-  private toRadians(value: number): number {
+  private toRadians(
+    value: number
+  ): number {
     return value * (Math.PI / 180);
   }
 
