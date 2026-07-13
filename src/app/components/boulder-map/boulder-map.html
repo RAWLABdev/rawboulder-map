@@ -1,8 +1,10 @@
-<main class="explore-shell">
-  <section
-    class="map-controls"
-    aria-label="Buscar y filtrar lugares"
-  >
+<main class="map-experience">
+  <div
+    id="map"
+    aria-label="Mapa de muros y boulders"
+  ></div>
+
+  <section class="floating-header">
     <div class="search-control">
       <svg
         aria-hidden="true"
@@ -15,15 +17,15 @@
 
       <input
         type="search"
-        aria-label="Buscar muro, comuna o gimnasio"
-        placeholder="Buscar muro o comuna"
+        placeholder="Buscar boulder o comuna"
+        aria-label="Buscar boulder o comuna"
         [value]="query()"
         (input)="onSearch($event)"
       />
 
       @if (query()) {
         <button
-          class="clear-search"
+          class="icon-button"
           type="button"
           aria-label="Limpiar búsqueda"
           (click)="clearSearch()"
@@ -33,58 +35,56 @@
       }
     </div>
 
-    <div
-      class="filter-list"
-      aria-label="Tipos de lugares"
-    >
-      <button
-        type="button"
-        [class.active]="activeFilter() === 'all'"
-        (click)="setFilter('all')"
-      >
-        Todos
-      </button>
+    <div class="filter-row">
+      <div class="filter-list">
+        <button
+          type="button"
+          [class.active]="activeFilter() === 'all'"
+          (click)="setFilter('all')"
+        >
+          Todos
+        </button>
 
-      <button
-        type="button"
-        [class.active]="activeFilter() === 'boulder'"
-        (click)="setFilter('boulder')"
-      >
-        Boulder
-      </button>
+        <button
+          type="button"
+          [class.active]="activeFilter() === 'boulder'"
+          (click)="setFilter('boulder')"
+        >
+          Boulder
+        </button>
 
-      <button
-        type="button"
-        [class.active]="activeFilter() === 'muro'"
-        (click)="setFilter('muro')"
-      >
-        Muro
-      </button>
+        <button
+          type="button"
+          [class.active]="activeFilter() === 'muro'"
+          (click)="setFilter('muro')"
+        >
+          Muro
+        </button>
 
-      <button
-        type="button"
-        [class.active]="activeFilter() === 'mixto'"
-        (click)="setFilter('mixto')"
-      >
-        Mixto
-      </button>
+        <button
+          type="button"
+          [class.active]="activeFilter() === 'mixto'"
+          (click)="setFilter('mixto')"
+        >
+          Mixto
+        </button>
+      </div>
+
+      <span class="result-count">
+        {{ resultLabel() }}
+      </span>
     </div>
   </section>
 
-  <div
-    id="map"
-    aria-label="Mapa de muros y boulders"
-  ></div>
-
   <button
-    class="nearby-button"
+    class="location-fab"
     type="button"
     [disabled]="locating()"
+    aria-label="Buscar boulders cerca de mí"
     (click)="findNearestSpot()"
   >
     @if (locating()) {
       <span class="loading-dot"></span>
-      Buscando
     } @else {
       <svg
         aria-hidden="true"
@@ -92,122 +92,174 @@
       >
         <circle cx="12" cy="12" r="3" />
         <circle cx="12" cy="12" r="8" />
-        <path d="M12 2v2M12 20v2M2 12h2M20 12h2" />
+        <path
+          d="M12 2v2M12 20v2M2 12h2M20 12h2"
+        />
       </svg>
-
-      Cerca de mí
     }
   </button>
 
-  <section
-  class="spot-carousel"
-  aria-label="Lugares encontrados"
->
-  @for (spot of filteredSpots(); track spot.id) {
-    <article
-      class="spot-card"
-      [class.selected]="selectedSpot()?.id === spot.id"
-      tabindex="0"
-      (click)="focusSpot(spot)"
-      (keydown.enter)="focusSpot(spot)"
+  @if (!selectedSpot() && filteredSpots().length) {
+    <button
+      class="open-results"
+      type="button"
+      (click)="openFirstVisibleSpot()"
     >
-      <header class="spot-card-header">
-        <div>
-          <span class="spot-type">
-            {{ spot.type }}
-          </span>
+      Ver {{ resultLabel() }}
+    </button>
+  }
 
-          <h2>{{ spot.name }}</h2>
-        </div>
+  @if (selectedSpot(); as spot) {
+    <section
+  class="bottom-sheet"
+  [class.closed]="sheetState() === 'closed'"
+  [class.expanded]="sheetState() === 'expanded'"
+  [class.dragging]="isDraggingSheet()"
+  [style.transform]="
+    'translateY(' + sheetDragOffset() + 'px)'
+  "
+  aria-label="Información del lugar"
+>
+  <div
+    class="sheet-drag-zone"
+    (pointerdown)="onSheetPointerDown($event)"
+    (pointermove)="onSheetPointerMove($event)"
+    (pointerup)="onSheetPointerUp($event)"
+    (pointercancel)="onSheetPointerUp($event)"
+  >
+    <button
+      class="sheet-handle"
+      type="button"
+      aria-label="Expandir o contraer información"
+      (click)="toggleSheet()"
+    >
+      <span></span>
+    </button>
 
-        @if (spot.distanceKm !== undefined) {
-          <span class="spot-distance">
-            {{ spot.distanceKm.toFixed(1) }} km
-          </span>
-        }
-      </header>
+    <button
+      class="sheet-close"
+      type="button"
+      aria-label="Cerrar información"
+      (click)="closeSheet($event)"
+    >
+      ×
+    </button>
 
-      <div class="spot-location">
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-        >
-          <path
-            d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"
-          />
+    <div class="sheet-summary">
+      <div>
+        <span class="spot-type">
+          {{ spot.type }}
+        </span>
 
-          <circle
-            cx="12"
-            cy="10"
-            r="2.5"
-          />
-        </svg>
+        <h2>{{ spot.name }}</h2>
 
-        <span>{{ spot.commune }}</span>
+        <p>{{ spot.commune }}</p>
       </div>
 
-      <div class="spot-meta">
-        @if (spot.visited) {
-          <span class="visited">
-            <i></i>
-            Visitado por RAW
-          </span>
-        } @else {
-          <span>Por conocer</span>
-        }
-      </div>
+      @if (spot.distanceKm !== undefined) {
+        <strong>
+          {{ spot.distanceKm.toFixed(1) }} km
+        </strong>
+      }
+    </div>
+  </div>
 
-      <footer class="spot-actions">
-        @if (spot.instagram) {
-          <a
-            [href]="spot.instagram"
-            target="_blank"
-            rel="noopener noreferrer"
-            (click)="$event.stopPropagation()"
-          >
-            Instagram
-          </a>
-        }
+  <div class="sheet-content">
+    <div class="sheet-quick-actions">
+      <button
+        type="button"
+        [class.active]="isFavorite(spot.id)"
+        (click)="toggleFavorite(spot, $event)"
+      >
+        <span aria-hidden="true">
+          {{ isFavorite(spot.id) ? '♥' : '♡' }}
+        </span>
 
-        <a
-          class="primary-action"
-          [href]="spot.googleMaps"
-          target="_blank"
-          rel="noopener noreferrer"
-          (click)="$event.stopPropagation()"
-        >
-          Cómo llegar
-
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-          >
-            <path d="m9 18 6-6-6-6" />
-          </svg>
-        </a>
-      </footer>
-    </article>
-  } @empty {
-    <article class="empty-state">
-      <span>Sin resultados</span>
-
-      <strong>
-        No encontramos lugares con esa búsqueda.
-      </strong>
+        {{
+          isFavorite(spot.id)
+            ? 'Guardado'
+            : 'Guardar'
+        }}
+      </button>
 
       <button
         type="button"
-        (click)="clearSearch(); setFilter('all')"
+        (click)="shareSpot(spot, $event)"
       >
-        Ver todos
+        <span aria-hidden="true">↗</span>
+        Compartir
       </button>
-    </article>
-  }
+    </div>
+
+    <div class="spot-status">
+      @if (spot.visited) {
+        <span class="visited">
+          <i></i>
+          Visitado por RAW
+        </span>
+      } @else {
+        <span>Por conocer</span>
+      }
+    </div>
+
+    <dl class="spot-details">
+      <div>
+        <dt>Dirección</dt>
+        <dd>{{ spot.address }}</dd>
+      </div>
+
+      @if (spot.schedule) {
+        <div>
+          <dt>Horario</dt>
+          <dd>{{ spot.schedule }}</dd>
+        </div>
+      }
+
+      @if (spot.price) {
+        <div>
+          <dt>Entrada</dt>
+          <dd>{{ spot.price }}</dd>
+        </div>
+      }
+    </dl>
+
+    <div class="spot-actions">
+      @if (spot.instagram) {
+        <a
+          [href]="spot.instagram"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Instagram
+        </a>
+      }
+
+      @if (spot.website) {
+        <a
+          [href]="spot.website"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Sitio web
+        </a>
+      }
+
+      <a
+        class="primary-action"
+        [href]="getDirectionsUrl(spot)"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Cómo llegar
+      </a>
+    </div>
+  </div>
 </section>
+  }
 </main>
 
-@if (locationStatus()) {
-  <aside class="location-message">
-    {{ locationStatus() }}
+@if (shareStatus()) {
+  <aside class="toast-message">
+    {{ shareStatus() }}
   </aside>
 }
